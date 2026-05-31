@@ -31,6 +31,8 @@ local DoubleJumpEnabled = false
 local InvisEnabled = false
 local EspBoxesEnabled = false  
 local EspTracersEnabled = false 
+local CornerBoxesEnabled = false    -- Upgraded Parameter 1
+local TelemetryInfoEnabled = false  -- Upgraded Parameter 2
 local BaseFovRadius = 100
 local SmoothnessDivisor = 5 
 
@@ -199,7 +201,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
 end)
 
 ----------------------------------------------------------------
--- OPTIMIZED ESP SYSTEM GRAPHICS ENGINE
+-- UPGRADED ESP SYSTEM GRAPHICS ARRAY (UNIFIED MATRIX REBUILD)
 ----------------------------------------------------------------
 
 local ActiveEspRegistry = {}
@@ -207,6 +209,7 @@ local ActiveEspRegistry = {}
 local function CreateEspProfile(player)
 	if ActiveEspRegistry[player] then return end
 	
+	-- Flat 2D Box Framework
 	local Box = Drawing.new("Square")
 	Box.Visible = false
 	Box.Color = ACCENT_MINT
@@ -214,19 +217,66 @@ local function CreateEspProfile(player)
 	Box.Filled = false
 	Box.Transparency = 0.8
 	
+	-- Flat Directional Link Lines
 	local Tracer = Drawing.new("Line")
 	Tracer.Visible = false
 	Tracer.Color = TEXT_MAIN
 	Tracer.Thickness = 1
 	Tracer.Transparency = 0.6
 	
-	ActiveEspRegistry[player] = {Box = Box, Tracer = Tracer}
+	-- Unified Modular Corner Brackets Allocation (8 Vector Segments)
+	local Brackets = {}
+	for i = 1, 8 do
+		local Line = Drawing.new("Line")
+		Line.Color = ACCENT_MINT
+		Line.Thickness = 1.5
+		Line.Visible = false
+		Line.Transparency = 0.85
+		table.insert(Brackets, Line)
+	end
+	
+	-- Proportional Structural Status Bars
+	local HealthBarBg = Drawing.new("Line")
+	HealthBarBg.Color = Color3.fromRGB(40, 40, 45)
+	HealthBarBg.Thickness = 2
+	HealthBarBg.Visible = false
+	
+	local HealthBarFill = Drawing.new("Line")
+	HealthBarFill.Color = ACCENT_MINT
+	HealthBarFill.Thickness = 2
+	HealthBarFill.Visible = false
+	
+	-- Dynamic String Label Elements
+	local TextTag = Drawing.new("Text")
+	TextTag.Color = TEXT_MAIN
+	TextTag.Size = 13
+	TextTag.Font = 3
+	TextTag.Center = true
+	TextTag.Outline = true
+	TextTag.OutlineColor = BG_DARK
+	TextTag.Visible = false
+	
+	ActiveEspRegistry[player] = {
+		Box = Box, 
+		Tracer = Tracer,
+		Brackets = Brackets,
+		HealthBarBg = HealthBarBg,
+		HealthBarFill = HealthBarFill,
+		TextTag = TextTag
+	}
 end
 
 local function RemoveEspProfile(player)
-	if ActiveEspRegistry[player] then
-		ActiveEspRegistry[player].Box:Destroy()
-		ActiveEspRegistry[player].Tracer:Destroy()
+	local assets = ActiveEspRegistry[player]
+	if assets then
+		assets.Box:Destroy()
+		assets.Tracer:Destroy()
+		assets.HealthBarBg:Destroy()
+		assets.HealthBarFill:Destroy()
+		assets.TextTag:Destroy()
+		for _, line in ipairs(assets.Brackets) do
+			line:Destroy()
+		end
 		ActiveEspRegistry[player] = nil
 	end
 end
@@ -242,32 +292,87 @@ RunService.RenderStepped:Connect(function()
 		local char = player.Character
 		local showBox = false
 		local showTracer = false
+		local showCorners = false
+		local showTelemetry = false
 		
 		if IsTargetValid(char) and not IsTeammate(player) then
 			local root = char.HumanoidRootPart
+			local humanoid = char:FindFirstChildOfClass("Humanoid")
 			local pos, onScreen = CurrentCamera:WorldToViewportPoint(root.Position)
 			
-			if onScreen then
+			if onScreen and humanoid then
 				local camDistance = (CurrentCamera.CFrame.Position - root.Position).Magnitude
 				local boxHeight = math.clamp((1000 / camDistance) * 3, 10, 200)
 				local boxWidth = boxHeight * 0.7
 				
+				local x, y = pos.X, pos.Y
+				local leftX, rightX = x - boxWidth / 2, x + boxWidth / 2
+				local topY, bottomY = y - boxHeight / 2, y + boxHeight / 2
+				
+				-- Feature A: Classic Solid 2D Box
 				if EspBoxesEnabled then
 					assets.Box.Size = Vector2.new(boxWidth, boxHeight)
-					assets.Box.Position = Vector2.new(pos.X - boxWidth/2, pos.Y - boxHeight/2)
+					assets.Box.Position = Vector2.new(leftX, topY)
 					showBox = true
 				end
 				
+				-- Feature B: Screen Bottom Direct Vectors
 				if EspTracersEnabled then
 					assets.Tracer.From = Vector2.new(CurrentCamera.ViewportSize.X / 2, CurrentCamera.ViewportSize.Y)
-					assets.Tracer.To = Vector2.new(pos.X, pos.Y)
+					assets.Tracer.To = Vector2.new(x, y)
 					showTracer = true
+				end
+				
+				-- Feature C: 8-Line Fragmented Corner Bracket Systems
+				if CornerBoxesEnabled then
+					local b = assets.Brackets
+					local lLength = boxWidth * 0.25
+					
+					-- Top Left Bracket
+					b[1].From, b[1].To = Vector2.new(leftX, topY), Vector2.new(leftX + lLength, topY)
+					b[2].From, b[2].To = Vector2.new(leftX, topY), Vector2.new(leftX, topY + lLength)
+					-- Top Right Bracket
+					b[3].From, b[3].To = Vector2.new(rightX, topY), Vector2.new(rightX - lLength, topY)
+					b[4].From, b[4].To = Vector2.new(rightX, topY), Vector2.new(rightX, topY + lLength)
+					-- Bottom Left Bracket
+					b[5].From, b[5].To = Vector2.new(leftX, bottomY), Vector2.new(leftX + lLength, bottomY)
+					b[6].From, b[6].To = Vector2.new(leftX, bottomY), Vector2.new(leftX, bottomY - lLength)
+					-- Bottom Right Bracket
+					b[7].From, b[7].To = Vector2.new(rightX, bottomY), Vector2.new(rightX - lLength, bottomY)
+					b[8].From, b[8].To = Vector2.new(rightX, bottomY), Vector2.new(rightX, bottomY - lLength)
+					
+					showCorners = true
+				end
+				
+				-- Feature D: Contextual Health Fill Arrays & Telemetry Strings
+				if TelemetryInfoEnabled then
+					local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+					local barX = leftX - 6
+					
+					assets.HealthBarBg.From = Vector2.new(barX, bottomY)
+					assets.HealthBarBg.To = Vector2.new(barX, topY)
+					
+					assets.HealthBarFill.From = Vector2.new(barX, bottomY)
+					assets.HealthBarFill.To = Vector2.new(barX, bottomY - (boxHeight * healthPercent))
+					assets.HealthBarFill.Color = healthPercent > 0.5 and ACCENT_MINT or CRITICAL_RED
+					
+					assets.TextTag.Position = Vector2.new(x, topY - 18)
+					assets.TextTag.Text = string.format("%s [%d Studs]", player.Name, math.floor(camDistance))
+					
+					showTelemetry = true
 				end
 			end
 		end
 		
+		-- Synchronize asset pipeline visible markers
 		assets.Box.Visible = showBox
 		assets.Tracer.Visible = showTracer
+		assets.HealthBarBg.Visible = showTelemetry
+		assets.HealthBarFill.Visible = showTelemetry
+		assets.TextTag.Visible = showTelemetry
+		for i = 1, 8 do 
+			assets.Brackets[i].Visible = showCorners 
+		end
 	end
 end)
 
@@ -596,7 +701,7 @@ end
 local CombatTab = createTabWindow("Combat Matrix")
 local EngineTab = createTabWindow("Physical Engine")
 local VisualsTab = createTabWindow("Visuals Matrix")
-local SettingsTab = createTabWindow("Settings Config") -- Dynamic Settings Node Added
+local SettingsTab = createTabWindow("Settings Config")
 
 tabs["Combat Matrix"].Active = true
 tabs["Combat Matrix"].Window.Visible = true
@@ -751,7 +856,6 @@ local function AppendSlider(targetTab, text, min, max, default, callback)
 	end)
 end
 
--- Specialty Universal Hardware Key Selector Node Frame Generator
 local function AppendKeybindSelector(targetTab, text, currentKey, callback)
 	local Frame = Instance.new("Frame")
 	Frame.Size = UDim2.new(1, -10, 0, 42)
@@ -831,7 +935,6 @@ local function SetAimbotState(newState)
 	AimbotEnabled = newState
 	updateStatus("Aimbot Tracking -> " .. (AimbotEnabled and "ON" or "OFF"), false)
 	
-	-- Reflect programmatic state change back onto the visual UI components
 	if SyncAimbotToggleButton then
 		local targetBG = AimbotEnabled and ACCENT_MINT or TOGGLE_DARK
 		local targetText = AimbotEnabled and BG_DARK or TEXT_MAIN
@@ -840,7 +943,7 @@ local function SetAimbotState(newState)
 	end
 end
 
--- Combat Elements Matrix Tab Layout Registry
+-- Combat Matrix Tab Layouts
 SyncAimbotToggleButton, SyncAimbotToggleTextLabel = AppendToggle(CombatTab, "Enable Master Aimbot ["..AIMBOT_TOGGLE_KEY.Name.."]", false, function(s)
 	SetAimbotState(s)
 end)
@@ -869,7 +972,7 @@ AppendSlider(CombatTab, "Tracking Lerp Speed", 1, 30, 5, function(v)
 	SmoothnessDivisor = v
 end)
 
--- Physical Engine Elements Array
+-- Physical Engine Array
 AppendToggle(EngineTab, "Air Impulse Double Jump", false, function(s)
 	DoubleJumpEnabled = s
 	canDoubleJump = false
@@ -882,10 +985,20 @@ AppendToggle(EngineTab, "Local Invisible Mode Profile", false, function(s)
 	updateStatus("Anisotropic Profile State Change", false)
 end)
 
--- Visual Elements Array
+-- Visuals Matrix Array (Upgraded with Corner Bracket and Telemetry Options)
 AppendToggle(VisualsTab, "Draw 2D Bounding Boxes", false, function(s)
 	EspBoxesEnabled = s
-	updateStatus("ESP bounding framework modified", false)
+	updateStatus("ESP standard bounding frame modified", false)
+end)
+
+AppendToggle(VisualsTab, "Fragmented Minimalist Corner Boxes", false, function(s)
+	CornerBoxesEnabled = s
+	updateStatus("Corner brackets telemetry modified", false)
+end)
+
+AppendToggle(VisualsTab, "Structural Health Bars & Info text", false, function(s)
+	TelemetryInfoEnabled = s
+	updateStatus("Dynamic status bar stream mapped", false)
 end)
 
 AppendToggle(VisualsTab, "Render Screen Directional Tracers", false, function(s)
@@ -893,7 +1006,7 @@ AppendToggle(VisualsTab, "Render Screen Directional Tracers", false, function(s)
 	updateStatus("Vector line tracers updated", false)
 end)
 
--- Settings Elements Array Setup (Dual Keybind Management Profile)
+-- Settings Config Matrix
 SyncKeybindLabel = AppendKeybindSelector(SettingsTab, "Aimbot Activation Keybind", AIMBOT_TOGGLE_KEY, function(newKey)
 	AIMBOT_TOGGLE_KEY = newKey
 	if SyncAimbotToggleTextLabel then
@@ -911,58 +1024,50 @@ end)
 ----------------------------------------------------------------
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	-- System locks checking
 	if IsBindingKey then return end
 	if gameProcessed or UserInputService:GetFocusedTextBox() ~= nil then return end
 	
-	-- Handle Dynamic Visibility Intercept Engine
 	if input.KeyCode == MENU_TOGGLE_KEY then
 		menuVisible = not menuVisible
 		if menuVisible then
 			MainPanel.Visible = true
-			TweenService:Create(MainPanel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 560, 0, 360)}):Play()
+			TweenService:Create(MainPanel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 560, 0, 360), BackgroundTransparency = 0}):Play()
 		else
-			TweenService:Create(MainPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 560, 0, 0)}):Play()
+			TweenService:Create(MainPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 560, 0, 0), BackgroundTransparency = 1}):Play()
 			task.delay(0.2, function() if not menuVisible then MainPanel.Visible = false end end)
 		end
-		
-	-- Handle Combat Global Switch Target State Interchange
 	elseif input.KeyCode == AIMBOT_TOGGLE_KEY then
 		SetAimbotState(not AimbotEnabled)
 	end
 end)
 
 ----------------------------------------------------------------
--- RUNTIME INTRO EXPANSION SEQUENCE
+-- RUNTIME AUTOMATED COMPILING INTRO SEQUENCE
 ----------------------------------------------------------------
 
 task.spawn(function()
-	local diagnosticMessages = {
-		"Analyzing network packet loops...",
-		"Caching local character configuration nodes...",
-		"Compiling high-speed UI render pathways...",
-		"Binding anti-lag target calculation loops...",
-		"System optimization sequence finalized."
+	local compilationSteps = {
+		"Checking data persistence signatures...",
+		"Synchronizing structural environment settings...",
+		"Allocating hardware telemetry vectors...",
+		"Deploying low-level multi-thread loops...",
+		"Compilation interface map successful."
 	}
 	
-	for index, msg in ipairs(diagnosticMessages) do
-		LoaderSub.Text = msg
-		local targetPercentage = index / #diagnosticMessages
-		TweenService:Create(BarFill, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(targetPercentage, 0, 1, 0)}):Play()
-		task.wait(0.5)
+	for index, logMessage in ipairs(compilationSteps) do
+		LoaderSub.Text = logMessage
+		TweenService:Create(BarFill, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = UDim2.new(index / #compilationSteps, 0, 1, 0)}):Play()
+		task.wait(0.3)
 	end
 	
-	TweenService:Create(LoadingFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1, Size = UDim2.new(0, 0, 0, 0)}):Play()
-	TweenService:Create(LoaderTitle, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-	TweenService:Create(LoaderSub, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-	TweenService:Create(BarTrack, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-	TweenService:Create(BarFill, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+	TweenService:Create(LoadingFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {BackgroundTransparency = 1, Size = UDim2.new(0, 0, 0, 0)}):Play()
+	TweenService:Create(LoaderTitle, TweenInfo.new(0.15), {TextTransparency = 1}):Play()
+	TweenService:Create(LoaderSub, TweenInfo.new(0.15), {TextTransparency = 1}):Play()
 	
-	task.wait(0.4)
+	task.wait(0.3)
 	LoadingFrame:Destroy()
 	
-	-- Open main panel interfaces sequentially
 	MainPanel.Visible = true
 	MainPanel.Size = UDim2.new(0, 560, 0, 0)
-	TweenService:Create(MainPanel, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {BackgroundTransparency = 0, Size = UDim2.new(0, 560, 0, 360)}):Play()
+	TweenService:Create(MainPanel, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 560, 0, 360), BackgroundTransparency = 0}):Play()
 end)
