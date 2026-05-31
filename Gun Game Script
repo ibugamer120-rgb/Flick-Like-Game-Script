@@ -26,13 +26,13 @@ local TOGGLE_DARK = Color3.fromRGB(26, 26, 32)
 local AimbotEnabled = false
 local TargetLockEnabled = false
 local WallCheckEnabled = false
-local TeamCheckEnabled = false -- New option toggle flag
+local TeamCheckEnabled = false 
 local DoubleJumpEnabled = false
 local InvisEnabled = false
 local EspBoxesEnabled = false  
 local EspTracersEnabled = false 
 local FovRadius = 100
-local SmoothnessDivisor = 5
+local SmoothnessDivisor = 5 -- Scaled internally for dynamic tracking speed
 
 -- HARD-LOCKED CONFIGURATIONS
 local DoubleJumpPower = 40
@@ -43,7 +43,7 @@ local hasDoubleJumped = false
 local menuVisible = true
 
 ----------------------------------------------------------------
--- RUNTIME TARGETING ENGINE (ANTI-DEAD & TEAM LOCK SAFEGUARDS)
+-- RUNTIME TARGETING ENGINE (TRACKING & DELTA FLUIDITY FIX)
 ----------------------------------------------------------------
 
 local FOVCircle = Drawing.new("Circle")
@@ -89,9 +89,8 @@ local function GetClosestTarget()
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player ~= LocalPlayer and player.Character then
-			-- TEAM CHECK VALIDATION LOOP
 			if TeamCheckEnabled and player.Team == LocalPlayer.Team and not player.Neutral then
-				continue -- Bypasses teammates safely
+				continue 
 			end
 			
 			local character = player.Character
@@ -121,7 +120,8 @@ local function GetClosestTarget()
 	return closestTarget
 end
 
-RunService.RenderStepped:Connect(function()
+-- Delta-Time tracking calculation optimization loop
+RunService.RenderStepped:Connect(function(deltaTime)
 	local mousePos = Vector2.new(Mouse.X, Mouse.Y + 36)
 	FOVCircle.Position = mousePos
 	FOVCircle.Radius = FovRadius
@@ -134,7 +134,9 @@ RunService.RenderStepped:Connect(function()
 			if TargetLockEnabled then
 				CurrentCamera.CFrame = targetCFrame
 			else
-				CurrentCamera.CFrame = CurrentCamera.CFrame:Lerp(targetCFrame, 1 / SmoothnessDivisor)
+				-- True Framerate Independent Exponential Smoothing Engine
+				local interpolationFactor = 1 - math.exp(-SmoothnessDivisor * deltaTime * 5)
+				CurrentCamera.CFrame = CurrentCamera.CFrame:Lerp(targetCFrame, math.clamp(interpolationFactor, 0, 1))
 			end
 		end
 	end
@@ -185,7 +187,6 @@ RunService.RenderStepped:Connect(function()
 		local showBox = false
 		local showTracer = false
 		
-		-- Filter out visuals for teammates if Team Check is toggled active
 		local isTeammate = TeamCheckEnabled and player.Team == LocalPlayer.Team and not player.Neutral
 		
 		if IsTargetValid(char) and not isTeammate then
@@ -703,7 +704,6 @@ AppendToggle(CombatTab, "Enable Master Aimbot", false, function(s)
 	updateStatus("Aimbot Tracking -> " .. (s and "ON" or "OFF"), false)
 end)
 
--- INTEGRATED TEAM FILTER TOGGLE SWITCH
 AppendToggle(CombatTab, "Team Check Filter", false, function(s)
 	TeamCheckEnabled = s
 	updateStatus("Team Safeguard Filter -> " .. (s and "ACTIVE" or "OFF"), false)
@@ -724,7 +724,7 @@ AppendSlider(CombatTab, "Target Field-of-View Radius", 30, 500, 100, function(v)
 	updateStatus("FOV Scanning Dimension -> " .. v .. "px", false)
 end)
 
-AppendSlider(CombatTab, "Interpolation Smoothness", 1, 30, 5, function(v)
+AppendSlider(CombatTab, "Tracking Lerp Speed", 1, 30, 5, function(v)
 	SmoothnessDivisor = v
 end)
 
