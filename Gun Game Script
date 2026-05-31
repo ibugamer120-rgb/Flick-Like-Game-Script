@@ -40,6 +40,7 @@ local DEFAULT_ROBLOX_FOV = 70
 
 -- Dynamic Keybind Configuration State
 local AIMBOT_TOGGLE_KEY = Enum.KeyCode.O 
+local MENU_TOGGLE_KEY = Enum.KeyCode.RightShift -- Dedicated default menu key
 local IsBindingKey = false
 
 -- Physics State Management
@@ -750,8 +751,8 @@ local function AppendSlider(targetTab, text, min, max, default, callback)
 	end)
 end
 
--- Specialty Interactive Keybind Registry System Frame Generator
-local function AppendKeybindSelector(targetTab, text, defaultKey, callback)
+-- Specialty Universal Hardware Key Selector Node Frame Generator
+local function AppendKeybindSelector(targetTab, text, currentKey, callback)
 	local Frame = Instance.new("Frame")
 	Frame.Size = UDim2.new(1, -10, 0, 42)
 	Frame.BackgroundColor3 = PANEL_BODY
@@ -771,10 +772,10 @@ local function AppendKeybindSelector(targetTab, text, defaultKey, callback)
 	Label.Parent = Frame
 
 	local BindButton = Instance.new("TextButton")
-	BindButton.Size = UDim2.new(0, 80, 0, 24)
-	BindButton.Position = UDim2.new(1, -92, 0.5, -12)
+	BindButton.Size = UDim2.new(0, 100, 0, 24)
+	BindButton.Position = UDim2.new(1, -112, 0.5, -12)
 	BindButton.BackgroundColor3 = TOGGLE_DARK
-	BindButton.Text = "[" .. defaultKey.Name .. "]"
+	BindButton.Text = "[" .. currentKey.Name .. "]"
 	BindButton.Font = Enum.Font.Code
 	BindButton.TextSize = 11
 	BindButton.TextColor3 = ACCENT_MINT
@@ -797,22 +798,21 @@ local function AppendKeybindSelector(targetTab, text, defaultKey, callback)
 		IsBindingKey = true
 		BindButton.Text = "..."
 		BindButton.TextColor3 = TEXT_MUTED
-		updateStatus("Waiting for user hardware key input matrix...", false)
+		updateStatus("Awaiting client hardware input action match...", false)
 		
 		local signalConnection
 		signalConnection = UserInputService.InputBegan:Connect(function(inputObject)
 			if inputObject.UserInputType == Enum.UserInputType.Keyboard then
 				local selectedKey = inputObject.KeyCode
-				if selectedKey ~= Enum.KeyCode.Escape and selectedKey ~= Enum.KeyCode.M then
-					AIMBOT_TOGGLE_KEY = selectedKey
+				if selectedKey ~= Enum.KeyCode.Escape then
 					BindButton.Text = "[" .. selectedKey.Name .. "]"
 					BindButton.TextColor3 = ACCENT_MINT
 					callback(selectedKey)
-					updateStatus("Keybind configured to: " .. selectedKey.Name, false)
+					updateStatus("Assigned assignment successfully.", false)
 				else
-					BindButton.Text = "[" .. AIMBOT_TOGGLE_KEY.Name .. "]"
+					BindButton.Text = "[" .. currentKey.Name .. "]"
 					BindButton.TextColor3 = ACCENT_MINT
-					updateStatus("Keybind assignment rejected or core locked.", true)
+					updateStatus("Keybind configuration cycle aborted.", true)
 				end
 				IsBindingKey = false
 				signalConnection:Disconnect()
@@ -893,10 +893,42 @@ AppendToggle(VisualsTab, "Render Screen Directional Tracers", false, function(s)
 	updateStatus("Vector line tracers updated", false)
 end)
 
--- Settings Elements Array Setup
+-- Settings Elements Array Setup (Dual Keybind Management Profile)
 SyncKeybindLabel = AppendKeybindSelector(SettingsTab, "Aimbot Activation Keybind", AIMBOT_TOGGLE_KEY, function(newKey)
+	AIMBOT_TOGGLE_KEY = newKey
 	if SyncAimbotToggleTextLabel then
 		SyncAimbotToggleTextLabel.Text = "Enable Master Aimbot [" .. newKey.Name .. "]"
+	end
+end)
+
+AppendKeybindSelector(SettingsTab, "Console Panel Toggle Keybind", MENU_TOGGLE_KEY, function(newKey)
+	MENU_TOGGLE_KEY = newKey
+	updateStatus("Menu configuration assigned to: " .. newKey.Name, false)
+end)
+
+----------------------------------------------------------------
+-- INTEGRATED SYSTEM HARDWARE KEY INPUT MATRIX INTERRUPT HANDLER
+----------------------------------------------------------------
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	-- System locks checking
+	if IsBindingKey then return end
+	if gameProcessed or UserInputService:GetFocusedTextBox() ~= nil then return end
+	
+	-- Handle Dynamic Visibility Intercept Engine
+	if input.KeyCode == MENU_TOGGLE_KEY then
+		menuVisible = not menuVisible
+		if menuVisible then
+			MainPanel.Visible = true
+			TweenService:Create(MainPanel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 560, 0, 360)}):Play()
+		else
+			TweenService:Create(MainPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 560, 0, 0)}):Play()
+			task.delay(0.2, function() if not menuVisible then MainPanel.Visible = false end end)
+		end
+		
+	-- Handle Combat Global Switch Target State Interchange
+	elseif input.KeyCode == AIMBOT_TOGGLE_KEY then
+		SetAimbotState(not AimbotEnabled)
 	end
 end)
 
@@ -920,45 +952,17 @@ task.spawn(function()
 		task.wait(0.5)
 	end
 	
-	TweenService:Create(LoadingFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}):Play()
-	task.wait(0.3)
+	TweenService:Create(LoadingFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1, Size = UDim2.new(0, 0, 0, 0)}):Play()
+	TweenService:Create(LoaderTitle, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+	TweenService:Create(LoaderSub, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+	TweenService:Create(BarTrack, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+	TweenService:Create(BarFill, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
 	
-	LoaderTitle:Destroy()
-	LoaderSub:Destroy()
-	BarTrack:Destroy()
+	task.wait(0.4)
 	LoadingFrame:Destroy()
 	
+	-- Open main panel interfaces sequentially
 	MainPanel.Visible = true
-	MainPanel.Size = UDim2.new(0, 0, 0, 0)
-	MainPanel.BackgroundTransparency = 0
-	
-	TweenService:Create(MainPanel, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, 560, 0, 360)
-	}):Play()
-end)
-
-----------------------------------------------------------------
--- SYSTEM INPUT HARDWARE KEYBIND INTERRUPT MANIFEST
-----------------------------------------------------------------
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	-- Prevents execution if the user is currently choosing a custom keybind or entering chat messages
-	if IsBindingKey then return end
-	if gameProcessed or UserInputService:GetFocusedTextBox() ~= nil then return end
-	
-	-- Handle Menu UI Visibility Toggle (Hotkey: M)
-	if input.KeyCode == Enum.KeyCode.M then
-		menuVisible = not menuVisible
-		if menuVisible then
-			MainPanel.Visible = true
-			TweenService:Create(MainPanel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 560, 0, 360)}):Play()
-		else
-			TweenService:Create(MainPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 560, 0, 0)}):Play()
-			task.delay(0.2, function() if not menuVisible then MainPanel.Visible = false end end)
-		end
-		
-	-- Handle Dynamic Runtime Aimbot Global Toggle
-	elseif input.KeyCode == AIMBOT_TOGGLE_KEY then
-		SetAimbotState(not AimbotEnabled)
-	end
+	MainPanel.Size = UDim2.new(0, 560, 0, 0)
+	TweenService:Create(MainPanel, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {BackgroundTransparency = 0, Size = UDim2.new(0, 560, 0, 360)}):Play()
 end)
