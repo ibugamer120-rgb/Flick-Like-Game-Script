@@ -31,11 +31,12 @@ local DoubleJumpEnabled = false
 local InvisEnabled = false
 local EspBoxesEnabled = false  
 local EspTracersEnabled = false 
-local FovRadius = 100
-local SmoothnessDivisor = 5 -- Scaled internally for dynamic tracking speed
+local BaseFovRadius = 100
+local SmoothnessDivisor = 5 
 
 -- HARD-LOCKED CONFIGURATIONS
 local DoubleJumpPower = 40
+local DEFAULT_ROBLOX_FOV = 70
 
 -- Physics State Management
 local canDoubleJump = false
@@ -43,7 +44,39 @@ local hasDoubleJumped = false
 local menuVisible = true
 
 ----------------------------------------------------------------
--- RUNTIME TARGETING ENGINE (TRACKING & DELTA FLUIDITY FIX)
+-- UNIVERSAL TEAM DETECTION MATRIX
+----------------------------------------------------------------
+local function IsTeammate(player)
+	if not TeamCheckEnabled then return false end
+	
+	-- Check 1: Standard Roblox Team Service fallback
+	if player.Team == LocalPlayer.Team and not player.Neutral then
+		return true
+	end
+	
+	-- Check 2: Attribute-based engine assignments (Rivals Style)
+	local myTeamAttr = LocalPlayer:GetAttribute("Team") or LocalPlayer:GetAttribute("TeamID") or (LocalPlayer.Character and LocalPlayer.Character:GetAttribute("Team"))
+	local targetTeamAttr = player:GetAttribute("Team") or player:GetAttribute("TeamID") or (player.Character and player.Character:GetAttribute("Team"))
+	
+	if myTeamAttr and targetTeamAttr and myTeamAttr == targetTeamAttr then
+		return true
+	end
+	
+	-- Check 3: Folder structure assignments fallback
+	local teamsFolder = Workspace:FindFirstChild("Teams") or game:GetService("ReplicatedStorage"):FindFirstChild("Teams")
+	if teamsFolder then
+		for _, teamFolder in ipairs(teamsFolder:GetChildren()) do
+			if teamFolder:FindFirstChild(LocalPlayer.Name) and teamFolder:FindFirstChild(player.Name) then
+				return true
+			end
+		end
+	end
+	
+	return false
+end
+
+----------------------------------------------------------------
+-- RUNTIME TARGETING ENGINE (SNIPER SCOPE ACCURACY OVERHAUL)
 ----------------------------------------------------------------
 
 local FOVCircle = Drawing.new("Circle")
@@ -51,7 +84,7 @@ FOVCircle.Visible = false
 FOVCircle.Color = ACCENT_MINT
 FOVCircle.Thickness = 1.5
 FOVCircle.NumSides = 64
-FOVCircle.Radius = FovRadius
+FOVCircle.Radius = BaseFovRadius
 FOVCircle.Filled = false
 FOVCircle.Transparency = 0.6
 
@@ -83,13 +116,21 @@ local function IsTargetValid(character)
 	return true
 end
 
+-- Helper math to get dynamic FOV size scaled to camera magnification
+local function GetDynamicFovRadius()
+	local currentFov = CurrentCamera.FieldOfView
+	-- Normalizes the screen projection radius based on focal zoom scale
+	local fovAdjustment = math.tan(math.rad(currentFov / 2)) / math.tan(math.rad(DEFAULT_ROBLOX_FOV / 2))
+	return BaseFovRadius * fovAdjustment
+end
+
 local function GetClosestTarget()
 	local closestTarget = nil
-	local maxDistance = FovRadius
+	local maxDistance = GetDynamicFovRadius()
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player ~= LocalPlayer and player.Character then
-			if TeamCheckEnabled and player.Team == LocalPlayer.Team and not player.Neutral then
+			if IsTeammate(player) then
 				continue 
 			end
 			
@@ -120,11 +161,13 @@ local function GetClosestTarget()
 	return closestTarget
 end
 
--- Delta-Time tracking calculation optimization loop
+-- Delta-Time dependent simulation loop
 RunService.RenderStepped:Connect(function(deltaTime)
 	local mousePos = Vector2.new(Mouse.X, Mouse.Y + 36)
+	local dynamicRadius = GetDynamicFovRadius()
+	
 	FOVCircle.Position = mousePos
-	FOVCircle.Radius = FovRadius
+	FOVCircle.Radius = dynamicRadius
 	FOVCircle.Visible = AimbotEnabled and menuVisible
 
 	if AimbotEnabled then
@@ -134,8 +177,12 @@ RunService.RenderStepped:Connect(function(deltaTime)
 			if TargetLockEnabled then
 				CurrentCamera.CFrame = targetCFrame
 			else
-				-- True Framerate Independent Exponential Smoothing Engine
-				local interpolationFactor = 1 - math.exp(-SmoothnessDivisor * deltaTime * 5)
+				-- Dynamic scoping scalar deceleration profiles
+				local scopeMultiplier = CurrentCamera.FieldOfView / DEFAULT_ROBLOX_FOV
+				local targetTrackingSpeed = SmoothnessDivisor * (1 / math.clamp(scopeMultiplier, 0.1, 1))
+				
+				-- Smooth Exponential Interp Math: 1 - e^(-k * dt)
+				local interpolationFactor = 1 - math.exp(-targetTrackingSpeed * deltaTime * 3)
 				CurrentCamera.CFrame = CurrentCamera.CFrame:Lerp(targetCFrame, math.clamp(interpolationFactor, 0, 1))
 			end
 		end
@@ -187,9 +234,7 @@ RunService.RenderStepped:Connect(function()
 		local showBox = false
 		local showTracer = false
 		
-		local isTeammate = TeamCheckEnabled and player.Team == LocalPlayer.Team and not player.Neutral
-		
-		if IsTargetValid(char) and not isTeammate then
+		if IsTargetValid(char) and not IsTeammate(player) then
 			local root = char.HumanoidRootPart
 			local pos, onScreen = CurrentCamera:WorldToViewportPoint(root.Position)
 			
@@ -704,7 +749,7 @@ AppendToggle(CombatTab, "Enable Master Aimbot", false, function(s)
 	updateStatus("Aimbot Tracking -> " .. (s and "ON" or "OFF"), false)
 end)
 
-AppendToggle(CombatTab, "Team Check Filter", false, function(s)
+AppendToggle(CombatTab, "Universal Team Filter Check", false, function(s)
 	TeamCheckEnabled = s
 	updateStatus("Team Safeguard Filter -> " .. (s and "ACTIVE" or "OFF"), false)
 end)
@@ -720,7 +765,7 @@ AppendToggle(CombatTab, "Raycast Wall Filtering", false, function(s)
 end)
 
 AppendSlider(CombatTab, "Target Field-of-View Radius", 30, 500, 100, function(v)
-	FovRadius = v
+	BaseFovRadius = v
 	updateStatus("FOV Scanning Dimension -> " .. v .. "px", false)
 end)
 
