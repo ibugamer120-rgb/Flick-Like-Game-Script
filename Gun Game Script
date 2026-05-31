@@ -38,10 +38,19 @@ local SmoothnessDivisor = 5
 local DoubleJumpPower = 40
 local DEFAULT_ROBLOX_FOV = 70
 
+-- Dynamic Keybind Configuration State
+local AIMBOT_TOGGLE_KEY = Enum.KeyCode.O 
+local IsBindingKey = false
+
 -- Physics State Management
 local canDoubleJump = false
 local hasDoubleJumped = false
 local menuVisible = true
+
+-- UI Component Reference Handlers
+local SyncAimbotToggleButton = nil
+local SyncKeybindLabel = nil
+local SyncAimbotToggleTextLabel = nil
 
 ----------------------------------------------------------------
 -- UNIVERSAL TEAM DETECTION MATRIX
@@ -119,7 +128,6 @@ end
 -- Helper math to get dynamic FOV size scaled to camera magnification
 local function GetDynamicFovRadius()
 	local currentFov = CurrentCamera.FieldOfView
-	-- Normalizes the screen projection radius based on focal zoom scale
 	local fovAdjustment = math.tan(math.rad(currentFov / 2)) / math.tan(math.rad(DEFAULT_ROBLOX_FOV / 2))
 	return BaseFovRadius * fovAdjustment
 end
@@ -587,6 +595,7 @@ end
 local CombatTab = createTabWindow("Combat Matrix")
 local EngineTab = createTabWindow("Physical Engine")
 local VisualsTab = createTabWindow("Visuals Matrix")
+local SettingsTab = createTabWindow("Settings Config") -- Dynamic Settings Node Added
 
 tabs["Combat Matrix"].Active = true
 tabs["Combat Matrix"].Window.Visible = true
@@ -648,6 +657,8 @@ local function AppendToggle(targetTab, text, default, callback)
 		Button.Text = current and "ON" or "OFF"
 		callback(current)
 	end)
+	
+	return Button, Label
 end
 
 local function AppendSlider(targetTab, text, min, max, default, callback)
@@ -739,14 +750,99 @@ local function AppendSlider(targetTab, text, min, max, default, callback)
 	end)
 end
 
+-- Specialty Interactive Keybind Registry System Frame Generator
+local function AppendKeybindSelector(targetTab, text, defaultKey, callback)
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.new(1, -10, 0, 42)
+	Frame.BackgroundColor3 = PANEL_BODY
+	Frame.Parent = targetTab
+	addCorner(Frame, 6)
+	local rowStroke = addStroke(Frame, SEPARATOR_LINE, 1)
+
+	local Label = Instance.new("TextLabel")
+	Label.Size = UDim2.new(0.6, 0, 1, 0)
+	Label.Position = UDim2.new(0, 12, 0, 0)
+	Label.BackgroundTransparency = 1
+	Label.Text = text
+	Label.TextColor3 = TEXT_MAIN
+	Label.Font = Enum.Font.GothamMedium
+	Label.TextSize = 12
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = Frame
+
+	local BindButton = Instance.new("TextButton")
+	BindButton.Size = UDim2.new(0, 80, 0, 24)
+	BindButton.Position = UDim2.new(1, -92, 0.5, -12)
+	BindButton.BackgroundColor3 = TOGGLE_DARK
+	BindButton.Text = "[" .. defaultKey.Name .. "]"
+	BindButton.Font = Enum.Font.Code
+	BindButton.TextSize = 11
+	BindButton.TextColor3 = ACCENT_MINT
+	BindButton.ClipsDescendants = true
+	BindButton.Parent = Frame
+	addCorner(BindButton, 4)
+	addStroke(BindButton, SEPARATOR_LINE, 1)
+
+	Frame.MouseEnter:Connect(function()
+		TweenService:Create(rowStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(45, 45, 55)}):Play()
+	end)
+	Frame.MouseLeave:Connect(function()
+		TweenService:Create(rowStroke, TweenInfo.new(0.2), {Color = SEPARATOR_LINE}):Play()
+	end)
+
+	BindButton.MouseButton1Click:Connect(function()
+		createRipple(BindButton, Mouse.X, Mouse.Y)
+		if IsBindingKey then return end
+		
+		IsBindingKey = true
+		BindButton.Text = "..."
+		BindButton.TextColor3 = TEXT_MUTED
+		updateStatus("Waiting for user hardware key input matrix...", false)
+		
+		local signalConnection
+		signalConnection = UserInputService.InputBegan:Connect(function(inputObject)
+			if inputObject.UserInputType == Enum.UserInputType.Keyboard then
+				local selectedKey = inputObject.KeyCode
+				if selectedKey ~= Enum.KeyCode.Escape and selectedKey ~= Enum.KeyCode.M then
+					AIMBOT_TOGGLE_KEY = selectedKey
+					BindButton.Text = "[" .. selectedKey.Name .. "]"
+					BindButton.TextColor3 = ACCENT_MINT
+					callback(selectedKey)
+					updateStatus("Keybind configured to: " .. selectedKey.Name, false)
+				else
+					BindButton.Text = "[" .. AIMBOT_TOGGLE_KEY.Name .. "]"
+					BindButton.TextColor3 = ACCENT_MINT
+					updateStatus("Keybind assignment rejected or core locked.", true)
+				end
+				IsBindingKey = false
+				signalConnection:Disconnect()
+			end
+		end)
+	end)
+	
+	return BindButton
+end
+
 ----------------------------------------------------------------
 -- CORE ELEMENT INTERFACE REGISTRATION
 ----------------------------------------------------------------
 
--- Combat Elements Array
-AppendToggle(CombatTab, "Enable Master Aimbot", false, function(s)
-	AimbotEnabled = s
-	updateStatus("Aimbot Tracking -> " .. (s and "ON" or "OFF"), false)
+local function SetAimbotState(newState)
+	AimbotEnabled = newState
+	updateStatus("Aimbot Tracking -> " .. (AimbotEnabled and "ON" or "OFF"), false)
+	
+	-- Reflect programmatic state change back onto the visual UI components
+	if SyncAimbotToggleButton then
+		local targetBG = AimbotEnabled and ACCENT_MINT or TOGGLE_DARK
+		local targetText = AimbotEnabled and BG_DARK or TEXT_MAIN
+		TweenService:Create(SyncAimbotToggleButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetBG, TextColor3 = targetText}):Play()
+		SyncAimbotToggleButton.Text = AimbotEnabled and "ON" or "OFF"
+	end
+end
+
+-- Combat Elements Matrix Tab Layout Registry
+SyncAimbotToggleButton, SyncAimbotToggleTextLabel = AppendToggle(CombatTab, "Enable Master Aimbot ["..AIMBOT_TOGGLE_KEY.Name.."]", false, function(s)
+	SetAimbotState(s)
 end)
 
 AppendToggle(CombatTab, "Universal Team Filter Check", false, function(s)
@@ -797,6 +893,13 @@ AppendToggle(VisualsTab, "Render Screen Directional Tracers", false, function(s)
 	updateStatus("Vector line tracers updated", false)
 end)
 
+-- Settings Elements Array Setup
+SyncKeybindLabel = AppendKeybindSelector(SettingsTab, "Aimbot Activation Keybind", AIMBOT_TOGGLE_KEY, function(newKey)
+	if SyncAimbotToggleTextLabel then
+		SyncAimbotToggleTextLabel.Text = "Enable Master Aimbot [" .. newKey.Name .. "]"
+	end
+end)
+
 ----------------------------------------------------------------
 -- RUNTIME INTRO EXPANSION SEQUENCE
 ----------------------------------------------------------------
@@ -834,8 +937,16 @@ task.spawn(function()
 	}):Play()
 end)
 
--- Toggle Link for 'M' Hotkey (Affects UI canvas structure only)
+----------------------------------------------------------------
+-- SYSTEM INPUT HARDWARE KEYBIND INTERRUPT MANIFEST
+----------------------------------------------------------------
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	-- Prevents execution if the user is currently choosing a custom keybind or entering chat messages
+	if IsBindingKey then return end
+	if gameProcessed or UserInputService:GetFocusedTextBox() ~= nil then return end
+	
+	-- Handle Menu UI Visibility Toggle (Hotkey: M)
 	if input.KeyCode == Enum.KeyCode.M then
 		menuVisible = not menuVisible
 		if menuVisible then
@@ -845,5 +956,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			TweenService:Create(MainPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 560, 0, 0)}):Play()
 			task.delay(0.2, function() if not menuVisible then MainPanel.Visible = false end end)
 		end
+		
+	-- Handle Dynamic Runtime Aimbot Global Toggle
+	elseif input.KeyCode == AIMBOT_TOGGLE_KEY then
+		SetAimbotState(not AimbotEnabled)
 	end
 end)
