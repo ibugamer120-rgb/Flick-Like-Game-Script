@@ -26,6 +26,7 @@ local TOGGLE_DARK = Color3.fromRGB(26, 26, 32)
 local AimbotEnabled = false
 local TargetLockEnabled = false
 local WallCheckEnabled = false
+local TeamCheckEnabled = false -- New option toggle flag
 local DoubleJumpEnabled = false
 local InvisEnabled = false
 local EspBoxesEnabled = false  
@@ -42,7 +43,7 @@ local hasDoubleJumped = false
 local menuVisible = true
 
 ----------------------------------------------------------------
--- RUNTIME TARGETING ENGINE (ANTI-DEAD TARGET LOCK FIX)
+-- RUNTIME TARGETING ENGINE (ANTI-DEAD & TEAM LOCK SAFEGUARDS)
 ----------------------------------------------------------------
 
 local FOVCircle = Drawing.new("Circle")
@@ -85,10 +86,14 @@ end
 local function GetClosestTarget()
 	local closestTarget = nil
 	local maxDistance = FovRadius
-	local myChar = LocalPlayer.Character
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player ~= LocalPlayer and player.Character then
+			-- TEAM CHECK VALIDATION LOOP
+			if TeamCheckEnabled and player.Team == LocalPlayer.Team and not player.Neutral then
+				continue -- Bypasses teammates safely
+			end
+			
 			local character = player.Character
 			if IsTargetValid(character) then
 				local head = character.Head
@@ -180,7 +185,10 @@ RunService.RenderStepped:Connect(function()
 		local showBox = false
 		local showTracer = false
 		
-		if IsTargetValid(char) then
+		-- Filter out visuals for teammates if Team Check is toggled active
+		local isTeammate = TeamCheckEnabled and player.Team == LocalPlayer.Team and not player.Neutral
+		
+		if IsTargetValid(char) and not isTeammate then
 			local root = char.HumanoidRootPart
 			local pos, onScreen = CurrentCamera:WorldToViewportPoint(root.Position)
 			
@@ -511,7 +519,6 @@ local function createTabWindow(tabName)
 			data.Button.BackgroundTransparency = 1
 			data.Button.TextColor3 = TEXT_MUTED
 			if data.Window.Visible then
-				-- FIXED: CanvasTransparency removed. Using Position and ScrollBar transparency manipulation instead.
 				TweenService:Create(data.Window, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0, -30, 0, 0), ScrollBarImageTransparency = 1}):Play()
 				task.delay(0.2, function() data.Window.Visible = false end)
 			end
@@ -694,6 +701,12 @@ end
 AppendToggle(CombatTab, "Enable Master Aimbot", false, function(s)
 	AimbotEnabled = s
 	updateStatus("Aimbot Tracking -> " .. (s and "ON" or "OFF"), false)
+end)
+
+-- INTEGRATED TEAM FILTER TOGGLE SWITCH
+AppendToggle(CombatTab, "Team Check Filter", false, function(s)
+	TeamCheckEnabled = s
+	updateStatus("Team Safeguard Filter -> " .. (s and "ACTIVE" or "OFF"), false)
 end)
 
 AppendToggle(CombatTab, "Instant Camera Snap", false, function(s)
