@@ -1,0 +1,252 @@
+-- Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local TargetUiParent = CoreGui or LocalPlayer:FindFirstChildOfClass("PlayerGui")
+
+-- Design System Palette
+local BG_DARK = Color3.fromRGB(10, 10, 12)
+local PANEL_BODY = Color3.fromRGB(16, 16, 20)
+local SEPARATOR_LINE = Color3.fromRGB(26, 26, 32)
+local TEXT_MAIN = Color3.fromRGB(245, 245, 245)
+local TEXT_MUTED = Color3.fromRGB(130, 130, 138)
+local ACCENT_MINT = Color3.fromRGB(0, 255, 150)
+local TOGGLE_DARK = Color3.fromRGB(24, 24, 30)
+
+-- YOUR REGISTRY (Your FPS Link is already placed here!)
+local ScriptRegistry = {
+	{
+		Name = "FPS Gun Game Script",
+		Description = "Flick-like mechanical framework featuring custom gun systems and viewmodels.",
+		Url = "https://github.com/ibugamer120-rgb/Flick-Like-Game-Script/raw/refs/heads/main/Gun%20Game%20Script"
+	}
+}
+
+-- UI State Tracker
+local hubVisible = true
+
+-- Core Screen GUI Setup
+local HubGui = Instance.new("ScreenGui")
+HubGui.Name = "WeProvideHub"
+HubGui.ResetOnSpawn = false
+HubGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+HubGui.Parent = TargetUiParent
+
+local function addCorner(parent, px)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, px or 6)
+	corner.Parent = parent
+end
+
+local function addStroke(parent, color, thick)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = thick or 1
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = parent
+	return stroke
+end
+
+local function createRipple(frame, touchX, touchY)
+	local circle = Instance.new("Frame")
+	circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	circle.BackgroundTransparency = 0.8
+	circle.AnchorPoint = Vector2.new(0.5, 0.5)
+	circle.Size = UDim2.new(0, 0, 0, 0)
+	circle.Position = UDim2.new(0, touchX - frame.AbsolutePosition.X, 0, touchY - frame.AbsolutePosition.Y)
+	addCorner(circle, 100)
+	circle.Parent = frame
+
+	local maxSize = math.max(frame.AbsoluteSize.X, frame.AbsoluteSize.Y) * 1.5
+	TweenService:Create(circle, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, maxSize, 0, maxSize),
+		BackgroundTransparency = 1
+	}):Play()
+	task.delay(0.4, function() circle:Destroy() end)
+end
+
+----------------------------------------------------------------
+-- MAIN HUB INTERFACE
+----------------------------------------------------------------
+
+local MainPanel = Instance.new("Frame")
+MainPanel.Name = "HubConsole"
+MainPanel.Size = UDim2.new(0, 500, 0, 340)
+MainPanel.Position = UDim2.new(0.5, -250, 0.5, -170)
+MainPanel.BackgroundColor3 = BG_DARK
+MainPanel.Parent = HubGui
+addCorner(MainPanel, 10)
+addStroke(MainPanel, SEPARATOR_LINE, 1.5)
+
+-- Dragging Handler
+local dragging, dragStart, startPos
+MainPanel.InputBegan:Connect(function(input)
+	if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and UserInputService:GetFocusedTextBox() == nil then
+		dragging = true
+		dragStart = input.Position
+		startPos = MainPanel.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
+end)
+MainPanel.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		TweenService:Create(MainPanel, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		}):Play()
+	end
+end)
+
+-- Headers
+local HeaderLabel = Instance.new("TextLabel")
+HeaderLabel.Size = UDim2.new(1, 0, 0, 45)
+HeaderLabel.Position = UDim2.new(0, 15, 0, 0)
+HeaderLabel.BackgroundTransparency = 1
+HeaderLabel.Text = "WeProvide // Script Hub"
+HeaderLabel.TextColor3 = TEXT_MAIN
+HeaderLabel.Font = Enum.Font.GothamBold
+HeaderLabel.TextSize = 14
+HeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
+HeaderLabel.Parent = MainPanel
+
+local SubHeaderLabel = Instance.new("TextLabel")
+SubHeaderLabel.Size = UDim2.new(1, 0, 0, 15)
+SubHeaderLabel.Position = UDim2.new(0, 15, 0, 32)
+SubHeaderLabel.BackgroundTransparency = 1
+SubHeaderLabel.Text = "Press RightShift to hide/show menu"
+SubHeaderLabel.TextColor3 = TEXT_MUTED
+SubHeaderLabel.Font = Enum.Font.Code
+SubHeaderLabel.TextSize = 10
+SubHeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
+SubHeaderLabel.Parent = MainPanel
+
+-- Scrolling Layout
+local CardsContainer = Instance.new("ScrollingFrame")
+CardsContainer.Size = UDim2.new(1, -24, 1, -75)
+CardsContainer.Position = UDim2.new(0, 12, 0, 65)
+CardsContainer.BackgroundTransparency = 1
+CardsContainer.BorderSizePixel = 0
+CardsContainer.ScrollBarThickness = 3
+CardsContainer.ScrollBarImageColor3 = ACCENT_MINT
+CardsContainer.Parent = MainPanel
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Padding = UDim.new(0, 8)
+ListLayout.Parent = CardsContainer
+
+ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	CardsContainer.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 6)
+end)
+
+----------------------------------------------------------------
+-- CARD CREATION ENGINE
+----------------------------------------------------------------
+
+for _, moduleData in ipairs(ScriptRegistry) do
+	local Card = Instance.new("Frame")
+	Card.Size = UDim2.new(1, -6, 0, 64)
+	Card.BackgroundColor3 = PANEL_BODY
+	Card.Parent = CardsContainer
+	addCorner(Card, 6)
+	local cardStroke = addStroke(Card, SEPARATOR_LINE, 1)
+
+	local Title = Instance.new("TextLabel")
+	Title.Size = UDim2.new(0.65, 0, 0, 24)
+	Title.Position = UDim2.new(0, 12, 0, 8)
+	Title.BackgroundTransparency = 1
+	Title.Text = moduleData.Name
+	Title.TextColor3 = TEXT_MAIN
+	Title.Font = Enum.Font.GothamBold
+	Title.TextSize = 13
+	Title.TextXAlignment = Enum.TextXAlignment.Left
+	Title.Parent = Card
+
+	local Desc = Instance.new("TextLabel")
+	Desc.Size = UDim2.new(0.65, 0, 0, 24)
+	Desc.Position = UDim2.new(0, 12, 0, 28)
+	Desc.BackgroundTransparency = 1
+	Desc.Text = moduleData.Description
+	Desc.TextColor3 = TEXT_MUTED
+	Desc.Font = Enum.Font.GothamMedium
+	Desc.TextSize = 11
+	Desc.TextWrap = true
+	Desc.TextXAlignment = Enum.TextXAlignment.Left
+	Desc.Parent = Card
+
+	local LaunchButton = Instance.new("TextButton")
+	LaunchButton.Size = UDim2.new(0, 90, 0, 28)
+	LaunchButton.Position = UDim2.new(1, -102, 0.5, -14)
+	LaunchButton.BackgroundColor3 = TOGGLE_DARK
+	LaunchButton.Text = "EXECUTE"
+	LaunchButton.Font = Enum.Font.GothamBold
+	LaunchButton.TextSize = 10
+	LaunchButton.TextColor3 = ACCENT_MINT
+	LaunchButton.ClipsDescendants = true
+	LaunchButton.Parent = Card
+	addCorner(LaunchButton, 4)
+	addStroke(LaunchButton, SEPARATOR_LINE, 1)
+
+	Card.MouseEnter:Connect(function()
+		TweenService:Create(cardStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(40, 40, 48)}):Play()
+	end)
+	Card.MouseLeave:Connect(function()
+		TweenService:Create(cardStroke, TweenInfo.new(0.2), {Color = SEPARATOR_LINE}):Play()
+	end)
+
+	LaunchButton.MouseButton1Click:Connect(function()
+		createRipple(LaunchButton, Mouse.X, Mouse.Y)
+		
+		LaunchButton.Text = "LOADING..."
+		LaunchButton.TextColor3 = TEXT_MUTED
+		
+		task.spawn(function()
+			local success, response = pcall(function()
+				return game:HttpGet(moduleData.Url)
+			end)
+			
+			if success and response then
+				LaunchButton.Text = "RUNNING"
+				LaunchButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+				LaunchButton.BackgroundColor3 = ACCENT_MINT
+				
+				local func, err = loadstring(response)
+				if func then
+					task.spawn(func)
+				else
+					warn("Error compiling script code: " .. tostring(err))
+					LaunchButton.Text = "STR_ERR"
+					LaunchButton.TextColor3 = Color3.fromRGB(255, 50, 50)
+				end
+			else
+				warn("Failed to reach GitHub link.")
+				LaunchButton.Text = "HTTP_ERR"
+				LaunchButton.TextColor3 = Color3.fromRGB(255, 50, 50)
+			end
+		end)
+	end)
+end
+
+----------------------------------------------------------------
+-- SHOW / HIDE CONTROLLER
+----------------------------------------------------------------
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed or UserInputService:GetFocusedTextBox() ~= nil then return end
+	
+	if input.KeyCode == Enum.KeyCode.RightShift then
+		hubVisible = not hubVisible
+		if hubVisible then
+			MainPanel.Visible = true
+			TweenService:Create(MainPanel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 500, 0, 340), BackgroundTransparency = 0}):Play()
+		else
+			TweenService:Create(MainPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 500, 0, 0), BackgroundTransparency = 1}):Play()
+			task.delay(0.2, function() if not hubVisible then MainPanel.Visible = false end end)
+		end
+	end
+end)
