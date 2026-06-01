@@ -31,10 +31,15 @@ local DoubleJumpEnabled = false
 local InvisEnabled = false
 local EspBoxesEnabled = false  
 local EspTracersEnabled = false 
-local CornerBoxesEnabled = false    -- Upgraded Parameter 1
-local TelemetryInfoEnabled = false  -- Upgraded Parameter 2
+local CornerBoxesEnabled = false    
+local TelemetryInfoEnabled = false  
 local BaseFovRadius = 100
 local SmoothnessDivisor = 5 
+
+-- UPGRADED FLAG MATRICES
+local TargetPartMode = "Head" -- Options: "Head", "Torso", "Randomized"
+local PredictionSystemEnabled = false
+local ProjectileSpeedScalar = 250 -- Custom projectile exit velocity simulation constant
 
 -- HARD-LOCKED CONFIGURATIONS
 local DoubleJumpPower = 40
@@ -42,7 +47,7 @@ local DEFAULT_ROBLOX_FOV = 70
 
 -- Dynamic Keybind Configuration State
 local AIMBOT_TOGGLE_KEY = Enum.KeyCode.O 
-local MENU_TOGGLE_KEY = Enum.KeyCode.RightShift -- Dedicated default menu key
+local MENU_TOGGLE_KEY = Enum.KeyCode.RightShift 
 local IsBindingKey = false
 
 -- Physics State Management
@@ -61,12 +66,10 @@ local SyncAimbotToggleTextLabel = nil
 local function IsTeammate(player)
 	if not TeamCheckEnabled then return false end
 	
-	-- Check 1: Standard Roblox Team Service fallback
 	if player.Team == LocalPlayer.Team and not player.Neutral then
 		return true
 	end
 	
-	-- Check 2: Attribute-based engine assignments (Rivals Style)
 	local myTeamAttr = LocalPlayer:GetAttribute("Team") or LocalPlayer:GetAttribute("TeamID") or (LocalPlayer.Character and LocalPlayer.Character:GetAttribute("Team"))
 	local targetTeamAttr = player:GetAttribute("Team") or player:GetAttribute("TeamID") or (player.Character and player.Character:GetAttribute("Team"))
 	
@@ -74,7 +77,6 @@ local function IsTeammate(player)
 		return true
 	end
 	
-	-- Check 3: Folder structure assignments fallback
 	local teamsFolder = Workspace:FindFirstChild("Teams") or game:GetService("ReplicatedStorage"):FindFirstChild("Teams")
 	if teamsFolder then
 		for _, teamFolder in ipairs(teamsFolder:GetChildren()) do
@@ -88,7 +90,7 @@ local function IsTeammate(player)
 end
 
 ----------------------------------------------------------------
--- RUNTIME TARGETING ENGINE (SNIPER SCOPE ACCURACY OVERHAUL)
+-- ADVANCED RUNTIME TARGETING ENGINE (EXTRAPOLATION & CORE TARGETING)
 ----------------------------------------------------------------
 
 local FOVCircle = Drawing.new("Circle")
@@ -128,11 +130,32 @@ local function IsTargetValid(character)
 	return true
 end
 
--- Helper math to get dynamic FOV size scaled to camera magnification
 local function GetDynamicFovRadius()
 	local currentFov = CurrentCamera.FieldOfView
 	local fovAdjustment = math.tan(math.rad(currentFov / 2)) / math.tan(math.rad(DEFAULT_ROBLOX_FOV / 2))
 	return BaseFovRadius * fovAdjustment
+end
+
+-- Specialty Structural Target Node Assignment Picker
+local function GetTargetPart(character)
+	if not IsTargetValid(character) then return nil end
+	
+	if TargetPartMode == "Head" then
+		return character:FindFirstChild("Head")
+	elseif TargetPartMode == "Torso" then
+		return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+	elseif TargetPartMode == "Randomized" then
+		local selectionPool = {}
+		local head = character:FindFirstChild("Head")
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		
+		if head then table.insert(selectionPool, head) end
+		if hrp then table.insert(selectionPool, hrp) end
+		
+		return #selectionPool > 0 and selectionPool[math.random(1, #selectionPool)] or nil
+	end
+	
+	return character:FindFirstChild("Head")
 end
 
 local function GetClosestTarget()
@@ -141,14 +164,14 @@ local function GetClosestTarget()
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player ~= LocalPlayer and player.Character then
-			if IsTeammate(player) then
-				continue 
-			end
+			if IsTeammate(player) then continue end
 			
 			local character = player.Character
 			if IsTargetValid(character) then
-				local head = character.Head
-				local screenPos, onScreen = CurrentCamera:WorldToViewportPoint(head.Position)
+				local trackingPart = GetTargetPart(character)
+				if not trackingPart then continue end
+				
+				local screenPos, onScreen = CurrentCamera:WorldToViewportPoint(trackingPart.Position)
 				
 				if onScreen then
 					local mousePos = Vector2.new(Mouse.X, Mouse.Y + 36)
@@ -156,13 +179,13 @@ local function GetClosestTarget()
 					
 					if distanceToMouse < maxDistance then
 						if WallCheckEnabled then
-							if IsVisible(head, character) then
+							if IsVisible(trackingPart, character) then
 								maxDistance = distanceToMouse
-								closestTarget = head
+								closestTarget = trackingPart
 							end
 						else
 							maxDistance = distanceToMouse
-							closestTarget = head
+							closestTarget = trackingPart
 						end
 					end
 				end
@@ -172,7 +195,7 @@ local function GetClosestTarget()
 	return closestTarget
 end
 
--- Delta-Time dependent simulation loop
+-- Delta-Time dependent simulation loop featuring dynamic projectile intercept arrays
 RunService.RenderStepped:Connect(function(deltaTime)
 	local mousePos = Vector2.new(Mouse.X, Mouse.Y + 36)
 	local dynamicRadius = GetDynamicFovRadius()
@@ -184,15 +207,28 @@ RunService.RenderStepped:Connect(function(deltaTime)
 	if AimbotEnabled then
 		local targetPart = GetClosestTarget()
 		if targetPart and targetPart.Parent and IsTargetValid(targetPart.Parent) then
-			local targetCFrame = CFrame.new(CurrentCamera.CFrame.Position, targetPart.Position)
+			local calculatedPosition = targetPart.Position
+			
+			-- Core Mathematical Extrapolation Engine Block 
+			if PredictionSystemEnabled then
+				local hrp = targetPart.Parent:FindFirstChild("HumanoidRootPart")
+				if hrp then
+					local targetVelocity = hrp.AssemblyLinearVelocity
+					local lineDistance = (calculatedPosition - CurrentCamera.CFrame.Position).Magnitude
+					local estimatedTimeOfFlight = lineDistance / math.max(ProjectileSpeedScalar, 1)
+					
+					-- Vector extrapolation integration logic
+					calculatedPosition = calculatedPosition + (targetVelocity * estimatedTimeOfFlight)
+				end
+			end
+			
+			local targetCFrame = CFrame.new(CurrentCamera.CFrame.Position, calculatedPosition)
 			if TargetLockEnabled then
 				CurrentCamera.CFrame = targetCFrame
 			else
-				-- Dynamic scoping scalar deceleration profiles
 				local scopeMultiplier = CurrentCamera.FieldOfView / DEFAULT_ROBLOX_FOV
 				local targetTrackingSpeed = SmoothnessDivisor * (1 / math.clamp(scopeMultiplier, 0.1, 1))
 				
-				-- Smooth Exponential Interp Math: 1 - e^(-k * dt)
 				local interpolationFactor = 1 - math.exp(-targetTrackingSpeed * deltaTime * 3)
 				CurrentCamera.CFrame = CurrentCamera.CFrame:Lerp(targetCFrame, math.clamp(interpolationFactor, 0, 1))
 			end
@@ -201,7 +237,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
 end)
 
 ----------------------------------------------------------------
--- UPGRADED ESP SYSTEM GRAPHICS ARRAY (UNIFIED MATRIX REBUILD)
+-- OPTIMIZED ESP SYSTEM GRAPHICS ENGINE
 ----------------------------------------------------------------
 
 local ActiveEspRegistry = {}
@@ -209,7 +245,6 @@ local ActiveEspRegistry = {}
 local function CreateEspProfile(player)
 	if ActiveEspRegistry[player] then return end
 	
-	-- Flat 2D Box Framework
 	local Box = Drawing.new("Square")
 	Box.Visible = false
 	Box.Color = ACCENT_MINT
@@ -217,14 +252,12 @@ local function CreateEspProfile(player)
 	Box.Filled = false
 	Box.Transparency = 0.8
 	
-	-- Flat Directional Link Lines
 	local Tracer = Drawing.new("Line")
 	Tracer.Visible = false
 	Tracer.Color = TEXT_MAIN
 	Tracer.Thickness = 1
 	Tracer.Transparency = 0.6
 	
-	-- Unified Modular Corner Brackets Allocation (8 Vector Segments)
 	local Brackets = {}
 	for i = 1, 8 do
 		local Line = Drawing.new("Line")
@@ -235,7 +268,6 @@ local function CreateEspProfile(player)
 		table.insert(Brackets, Line)
 	end
 	
-	-- Proportional Structural Status Bars
 	local HealthBarBg = Drawing.new("Line")
 	HealthBarBg.Color = Color3.fromRGB(40, 40, 45)
 	HealthBarBg.Thickness = 2
@@ -246,7 +278,6 @@ local function CreateEspProfile(player)
 	HealthBarFill.Thickness = 2
 	HealthBarFill.Visible = false
 	
-	-- Dynamic String Label Elements
 	local TextTag = Drawing.new("Text")
 	TextTag.Color = TEXT_MAIN
 	TextTag.Size = 13
@@ -309,42 +340,34 @@ RunService.RenderStepped:Connect(function()
 				local leftX, rightX = x - boxWidth / 2, x + boxWidth / 2
 				local topY, bottomY = y - boxHeight / 2, y + boxHeight / 2
 				
-				-- Feature A: Classic Solid 2D Box
 				if EspBoxesEnabled then
 					assets.Box.Size = Vector2.new(boxWidth, boxHeight)
 					assets.Box.Position = Vector2.new(leftX, topY)
 					showBox = true
 				end
 				
-				-- Feature B: Screen Bottom Direct Vectors
 				if EspTracersEnabled then
 					assets.Tracer.From = Vector2.new(CurrentCamera.ViewportSize.X / 2, CurrentCamera.ViewportSize.Y)
 					assets.Tracer.To = Vector2.new(x, y)
 					showTracer = true
 				end
 				
-				-- Feature C: 8-Line Fragmented Corner Bracket Systems
 				if CornerBoxesEnabled then
 					local b = assets.Brackets
 					local lLength = boxWidth * 0.25
 					
-					-- Top Left Bracket
 					b[1].From, b[1].To = Vector2.new(leftX, topY), Vector2.new(leftX + lLength, topY)
 					b[2].From, b[2].To = Vector2.new(leftX, topY), Vector2.new(leftX, topY + lLength)
-					-- Top Right Bracket
 					b[3].From, b[3].To = Vector2.new(rightX, topY), Vector2.new(rightX - lLength, topY)
 					b[4].From, b[4].To = Vector2.new(rightX, topY), Vector2.new(rightX, topY + lLength)
-					-- Bottom Left Bracket
 					b[5].From, b[5].To = Vector2.new(leftX, bottomY), Vector2.new(leftX + lLength, bottomY)
 					b[6].From, b[6].To = Vector2.new(leftX, bottomY), Vector2.new(leftX, bottomY - lLength)
-					-- Bottom Right Bracket
 					b[7].From, b[7].To = Vector2.new(rightX, bottomY), Vector2.new(rightX - lLength, bottomY)
 					b[8].From, b[8].To = Vector2.new(rightX, bottomY), Vector2.new(rightX, bottomY - lLength)
 					
 					showCorners = true
 				end
 				
-				-- Feature D: Contextual Health Fill Arrays & Telemetry Strings
 				if TelemetryInfoEnabled then
 					local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
 					local barX = leftX - 6
@@ -364,15 +387,12 @@ RunService.RenderStepped:Connect(function()
 			end
 		end
 		
-		-- Synchronize asset pipeline visible markers
 		assets.Box.Visible = showBox
 		assets.Tracer.Visible = showTracer
 		assets.HealthBarBg.Visible = showTelemetry
 		assets.HealthBarFill.Visible = showTelemetry
 		assets.TextTag.Visible = showTelemetry
-		for i = 1, 8 do 
-			assets.Brackets[i].Visible = showCorners 
-		end
+		for i = 1, 8 do assets.Brackets[i].Visible = showCorners end
 	end
 end)
 
@@ -856,6 +876,60 @@ local function AppendSlider(targetTab, text, min, max, default, callback)
 	end)
 end
 
+-- Specialty Cycle Toggle Text Component Generator
+local function AppendCycleButton(targetTab, text, currentOptions, defaultIndex, callback)
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.new(1, -10, 0, 42)
+	Frame.BackgroundColor3 = PANEL_BODY
+	Frame.Parent = targetTab
+	addCorner(Frame, 6)
+	local rowStroke = addStroke(Frame, SEPARATOR_LINE, 1)
+
+	local Label = Instance.new("TextLabel")
+	Label.Size = UDim2.new(0.6, 0, 1, 0)
+	Label.Position = UDim2.new(0, 12, 0, 0)
+	Label.BackgroundTransparency = 1
+	Label.Text = text
+	Label.TextColor3 = TEXT_MAIN
+	Label.Font = Enum.Font.GothamMedium
+	Label.TextSize = 12
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = Frame
+
+	local CycleButton = Instance.new("TextButton")
+	CycleButton.Size = UDim2.new(0, 100, 0, 24)
+	CycleButton.Position = UDim2.new(1, -112, 0.5, -12)
+	CycleButton.BackgroundColor3 = TOGGLE_DARK
+	CycleButton.Text = currentOptions[defaultIndex]
+	CycleButton.Font = Enum.Font.GothamBold
+	CycleButton.TextSize = 10
+	CycleButton.TextColor3 = ACCENT_MINT
+	CycleButton.ClipsDescendants = true
+	CycleButton.Parent = Frame
+	addCorner(CycleButton, 4)
+	addStroke(CycleButton, SEPARATOR_LINE, 1)
+
+	local currentIndex = defaultIndex
+
+	Frame.MouseEnter:Connect(function()
+		TweenService:Create(rowStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(45, 45, 55)}):Play()
+	end)
+	Frame.MouseLeave:Connect(function()
+		TweenService:Create(rowStroke, TweenInfo.new(0.2), {Color = SEPARATOR_LINE}):Play()
+	end)
+
+	CycleButton.MouseButton1Click:Connect(function()
+		createRipple(CycleButton, Mouse.X, Mouse.Y)
+		currentIndex = currentIndex + 1
+		if currentIndex > #currentOptions then currentIndex = 1 end
+		
+		CycleButton.Text = currentOptions[currentIndex]
+		callback(currentOptions[currentIndex])
+	end)
+	
+	return CycleButton
+end
+
 local function AppendKeybindSelector(targetTab, text, currentKey, callback)
 	local Frame = Instance.new("Frame")
 	Frame.Size = UDim2.new(1, -10, 0, 42)
@@ -948,6 +1022,20 @@ SyncAimbotToggleButton, SyncAimbotToggleTextLabel = AppendToggle(CombatTab, "Ena
 	SetAimbotState(s)
 end)
 
+AppendCycleButton(CombatTab, "Target Component Array Node", {"Head", "Torso", "Randomized"}, 1, function(selectedMode)
+	TargetPartMode = selectedMode
+	updateStatus("Target Vector Lock -> " .. selectedMode, false)
+end)
+
+AppendToggle(CombatTab, "Velocity Extrapolation Tracking", false, function(s)
+	PredictionSystemEnabled = s
+	updateStatus("Extrapolation Array Engine -> " .. (s and "ACTIVE" or "OFF"), false)
+end)
+
+AppendSlider(CombatTab, "Simulation Projectile Exit Speed", 50, 1000, 250, function(v)
+	ProjectileSpeedScalar = v
+end)
+
 AppendToggle(CombatTab, "Universal Team Filter Check", false, function(s)
 	TeamCheckEnabled = s
 	updateStatus("Team Safeguard Filter -> " .. (s and "ACTIVE" or "OFF"), false)
@@ -985,7 +1073,7 @@ AppendToggle(EngineTab, "Local Invisible Mode Profile", false, function(s)
 	updateStatus("Anisotropic Profile State Change", false)
 end)
 
--- Visuals Matrix Array (Upgraded with Corner Bracket and Telemetry Options)
+-- Visuals Matrix Array
 AppendToggle(VisualsTab, "Draw 2D Bounding Boxes", false, function(s)
 	EspBoxesEnabled = s
 	updateStatus("ESP standard bounding frame modified", false)
