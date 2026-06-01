@@ -8,245 +8,385 @@ local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local TargetUiParent = CoreGui or LocalPlayer:FindFirstChildOfClass("PlayerGui")
 
--- Design System Palette
-local BG_DARK = Color3.fromRGB(10, 10, 12)
-local PANEL_BODY = Color3.fromRGB(16, 16, 20)
-local SEPARATOR_LINE = Color3.fromRGB(26, 26, 32)
-local TEXT_MAIN = Color3.fromRGB(245, 245, 245)
-local TEXT_MUTED = Color3.fromRGB(130, 130, 138)
-local ACCENT_MINT = Color3.fromRGB(0, 255, 150)
-local TOGGLE_DARK = Color3.fromRGB(24, 24, 30)
+-- Premium Design Palette (Dark Slate, Cyber Mint, and Crimson Accents)
+local BG_MAIN = Color3.fromRGB(11, 12, 15)
+local SIDEBAR_BG = Color3.fromRGB(16, 17, 22)
+local PANEL_CARD = Color3.fromRGB(22, 24, 30)
+local BORDER_COLOR = Color3.fromRGB(32, 35, 45)
+local TEXT_TITLE = Color3.fromRGB(255, 255, 255)
+local TEXT_DESC = Color3.fromRGB(145, 150, 165)
+local ACCENT_MINT = Color3.fromRGB(0, 230, 135)
+local ACCENT_HOVER = Color3.fromRGB(0, 255, 150)
+local ERRORED_RED = Color3.fromRGB(255, 75, 75)
 
--- YOUR REGISTRY (Your FPS Link is already placed here!)
+-- Advanced Multi-Game Registry Matrix
 local ScriptRegistry = {
 	{
-		Name = "FPS Gun Game Script",
-		Description = "Flick-like mechanical framework featuring custom gun systems and viewmodels.",
+		Name = "FPS Gun Game Framework",
+		Developer = "ibugamer120-rgb",
+		Status = "Operational",
+		Version = "v2.4.1",
+		Description = "High-performance flick-mechanic engine optimized for custom viewmodels, interactive gun purchase configurations, and competitive shooter environments.",
 		Url = "https://github.com/ibugamer120-rgb/Flick-Like-Game-Script/raw/refs/heads/main/Gun%20Game%20Script"
+	},
+	{
+		Name = "Universal Physics Matrix",
+		Developer = "WeProvide Engine",
+		Status = "Operational",
+		Version = "v1.2.0",
+		Description = "Kinetic authority modifications including advanced dual-jump capabilities, profile concealment verification, and localized velocity simulation tweaks.",
+		Url = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/physics_engine.lua"
+	},
+	{
+		Name = "Battlegrounds Mechanical Core",
+		Developer = "WeProvide Engine",
+		Status = "Maintenance",
+		Version = "v0.9.8",
+		Description = "Structural framework adjustments tailored specifically for utility action overrides and localized sandbox tracking tools.",
+		Url = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/tsb_utility.lua"
 	}
 }
 
--- UI State Tracker
-local hubVisible = true
+-- Root Interface Layer Setup
+local PremiumHubGui = Instance.new("ScreenGui")
+PremiumHubGui.Name = "WeProvide_Pro_Hub"
+PremiumHubGui.ResetOnSpawn = false
+PremiumHubGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+PremiumHubGui.Parent = TargetUiParent
 
--- Core Screen GUI Setup
-local HubGui = Instance.new("ScreenGui")
-HubGui.Name = "WeProvideHub"
-HubGui.ResetOnSpawn = false
-HubGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-HubGui.Parent = TargetUiParent
+-- Structural Canvas Animations Setup
+local CanvasGroup = Instance.new("CanvasGroup")
+CanvasGroup.Size = UDim2.new(0, 680, 0, 420)
+CanvasGroup.Position = UDim2.new(0.5, -340, 0.5, -210)
+CanvasGroup.BackgroundColor3 = BG_MAIN
+CanvasGroup.GroupTransparency = 1
+CanvasGroup.Parent = PremiumHubGui
 
-local function addCorner(parent, px)
+local function roundElement(target, radius)
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, px or 6)
-	corner.Parent = parent
+	corner.CornerRadius = UDim.new(0, radius or 8)
+	corner.Parent = target
 end
 
-local function addStroke(parent, color, thick)
+local function outlineElement(target, color, thickness)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = color
-	stroke.Thickness = thick or 1
+	stroke.Thickness = thickness or 1
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = parent
+	stroke.Parent = target
 	return stroke
 end
 
-local function createRipple(frame, touchX, touchY)
-	local circle = Instance.new("Frame")
-	circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	circle.BackgroundTransparency = 0.8
-	circle.AnchorPoint = Vector2.new(0.5, 0.5)
-	circle.Size = UDim2.new(0, 0, 0, 0)
-	circle.Position = UDim2.new(0, touchX - frame.AbsolutePosition.X, 0, touchY - frame.AbsolutePosition.Y)
-	addCorner(circle, 100)
-	circle.Parent = frame
+local function triggerRippleEffect(frame, posX, posY)
+	local ripple = Instance.new("Frame")
+	ripple.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	ripple.BackgroundTransparency = 0.75
+	ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+	ripple.Size = UDim2.new(0, 0, 0, 0)
+	ripple.Position = UDim2.new(0, posX - frame.AbsolutePosition.X, 0, posY - frame.AbsolutePosition.Y)
+	roundElement(ripple, 100)
+	ripple.Parent = frame
 
-	local maxSize = math.max(frame.AbsoluteSize.X, frame.AbsoluteSize.Y) * 1.5
-	TweenService:Create(circle, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, maxSize, 0, maxSize),
+	local bounds = math.max(frame.AbsoluteSize.X, frame.AbsoluteSize.Y) * 2
+	TweenService:Create(ripple, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, bounds, 0, bounds),
 		BackgroundTransparency = 1
 	}):Play()
-	task.delay(0.4, function() circle:Destroy() end)
+	task.delay(0.5, function() ripple:Destroy() end)
 end
 
-----------------------------------------------------------------
--- MAIN HUB INTERFACE
-----------------------------------------------------------------
-
-local MainPanel = Instance.new("Frame")
-MainPanel.Name = "HubConsole"
-MainPanel.Size = UDim2.new(0, 500, 0, 340)
-MainPanel.Position = UDim2.new(0.5, -250, 0.5, -170)
-MainPanel.BackgroundColor3 = BG_DARK
-MainPanel.Parent = HubGui
-addCorner(MainPanel, 10)
-addStroke(MainPanel, SEPARATOR_LINE, 1.5)
-
--- Dragging Handler
-local dragging, dragStart, startPos
-MainPanel.InputBegan:Connect(function(input)
+-- Premium Fluid Drag Engine
+local isDragging, dragInput, dragStart, currentPosition
+CanvasGroup.InputBegan:Connect(function(input)
 	if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and UserInputService:GetFocusedTextBox() == nil then
-		dragging = true
+		isDragging = true
 		dragStart = input.Position
-		startPos = MainPanel.Position
+		currentPosition = CanvasGroup.Position
 		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			if input.UserInputState == Enum.UserInputState.End then isDragging = false end
 		end)
 	end
 end)
-MainPanel.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStart
-		TweenService:Create(MainPanel, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+CanvasGroup.InputChanged:Connect(function(input)
+	if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local shift = input.Position - dragStart
+		TweenService:Create(CanvasGroup, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(currentPosition.X.Scale, currentPosition.X.Offset + shift.X, currentPosition.Y.Scale, currentPosition.Y.Offset + shift.Y)
 		}):Play()
 	end
 end)
 
--- Headers
-local HeaderLabel = Instance.new("TextLabel")
-HeaderLabel.Size = UDim2.new(1, 0, 0, 45)
-HeaderLabel.Position = UDim2.new(0, 15, 0, 0)
-HeaderLabel.BackgroundTransparency = 1
-HeaderLabel.Text = "WeProvide // Script Hub"
-HeaderLabel.TextColor3 = TEXT_MAIN
-HeaderLabel.Font = Enum.Font.GothamBold
-HeaderLabel.TextSize = 14
-HeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
-HeaderLabel.Parent = MainPanel
+----------------------------------------------------------------
+-- SIDEBAR SELECTOR MATRIX PANEL
+----------------------------------------------------------------
 
-local SubHeaderLabel = Instance.new("TextLabel")
-SubHeaderLabel.Size = UDim2.new(1, 0, 0, 15)
-SubHeaderLabel.Position = UDim2.new(0, 15, 0, 32)
-SubHeaderLabel.BackgroundTransparency = 1
-SubHeaderLabel.Text = "Press RightShift to hide/show menu"
-SubHeaderLabel.TextColor3 = TEXT_MUTED
-SubHeaderLabel.Font = Enum.Font.Code
-SubHeaderLabel.TextSize = 10
-SubHeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
-SubHeaderLabel.Parent = MainPanel
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 240, 1, 0)
+Sidebar.BackgroundColor3 = SIDEBAR_BG
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = CanvasGroup
 
--- Scrolling Layout
-local CardsContainer = Instance.new("ScrollingFrame")
-CardsContainer.Size = UDim2.new(1, -24, 1, -75)
-CardsContainer.Position = UDim2.new(0, 12, 0, 65)
-CardsContainer.BackgroundTransparency = 1
-CardsContainer.BorderSizePixel = 0
-CardsContainer.ScrollBarThickness = 3
-CardsContainer.ScrollBarImageColor3 = ACCENT_MINT
-CardsContainer.Parent = MainPanel
+local DividerWall = Instance.new("Frame")
+DividerWall.Size = UDim2.new(0, 1, 1, 0)
+DividerWall.Position = UDim2.new(1, -1, 0, 0)
+DividerWall.BackgroundColor3 = BORDER_COLOR
+DividerWall.BorderSizePixel = 0
+DividerWall.Parent = Sidebar
 
-local ListLayout = Instance.new("UIListLayout")
-ListLayout.Padding = UDim.new(0, 8)
-ListLayout.Parent = CardsContainer
+local HubLogo = Instance.new("TextLabel")
+HubLogo.Size = UDim2.new(1, -30, 0, 50)
+HubLogo.Position = UDim2.new(0, 18, 0, 10)
+HubLogo.BackgroundTransparency = 1
+HubLogo.Text = "WEPROVIDE // PRO"
+HubLogo.TextColor3 = TEXT_TITLE
+HubLogo.Font = Enum.Font.GothamBold
+HubLogo.TextSize = 15
+HubLogo.TextXAlignment = Enum.TextXAlignment.Left
+HubLogo.Parent = Sidebar
 
-ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-	CardsContainer.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 6)
+local SystemTag = Instance.new("TextLabel")
+SystemTag.Size = UDim2.new(1, -30, 0, 15)
+SystemTag.Position = UDim2.new(0, 18, 0, 48)
+SystemTag.BackgroundTransparency = 1
+SystemTag.Text = "ENGINE SUITE DEPLOYMENT"
+SystemTag.TextColor3 = ACCENT_MINT
+SystemTag.Font = Enum.Font.Code
+SystemTag.TextSize = 9
+SystemTag.TextXAlignment = Enum.TextXAlignment.Left
+SystemTag.Parent = Sidebar
+
+local NavScroller = Instance.new("ScrollingFrame")
+NavScroller.Size = UDim2.new(1, -12, 1, -90)
+NavScroller.Position = UDim2.new(0, 6, 0, 80)
+NavScroller.BackgroundTransparency = 1
+NavScroller.BorderSizePixel = 0
+NavScroller.ScrollBarThickness = 0
+NavScroller.Parent = Sidebar
+
+local NavigationLayout = Instance.new("UIListLayout")
+NavigationLayout.Padding = UDim.new(0, 6)
+NavigationLayout.Parent = NavScroller
+
+----------------------------------------------------------------
+-- DYNAMIC RIGHT-SIDE PREVIEW DECK
+----------------------------------------------------------------
+
+local PreviewDeck = Instance.new("Frame")
+PreviewDeck.Size = UDim2.new(1, -240, 1, 0)
+PreviewDeck.Position = UDim2.new(0, 240, 0, 0)
+PreviewDeck.BackgroundTransparency = 1
+PreviewDeck.Parent = CanvasGroup
+
+local LaunchModuleBtn = Instance.new("TextButton")
+LaunchModuleBtn.Size = UDim2.new(1, -40, 0, 45)
+LaunchModuleBtn.Position = UDim2.new(0, 20, 1, -65)
+LaunchModuleBtn.BackgroundColor3 = ACCENT_MINT
+LaunchModuleBtn.Text = "RUN ENGINE SCRIPT"
+LaunchModuleBtn.Font = Enum.Font.GothamBold
+LaunchModuleBtn.TextSize = 12
+LaunchModuleBtn.TextColor3 = SIDEBAR_BG
+LaunchModuleBtn.Visible = false
+LaunchModuleBtn.ClipsDescendants = true
+LaunchModuleBtn.Parent = PreviewDeck
+roundElement(LaunchModuleBtn, 6)
+
+-- Interactive Launch Button Hover Effects
+LaunchModuleBtn.MouseEnter:Connect(function()
+	TweenService:Create(LaunchModuleBtn, TweenInfo.new(0.2), {BackgroundColor3 = ACCENT_HOVER}):Play()
+end)
+LaunchModuleBtn.MouseLeave:Connect(function()
+	TweenService:Create(LaunchModuleBtn, TweenInfo.new(0.2), {BackgroundColor3 = ACCENT_MINT}):Play()
 end)
 
+local PreviewTitle = Instance.new("TextLabel")
+PreviewTitle.Size = UDim2.new(1, -40, 0, 35)
+PreviewTitle.Position = UDim2.new(0, 20, 0, 30)
+PreviewTitle.BackgroundTransparency = 1
+PreviewTitle.Text = ""
+PreviewTitle.TextColor3 = TEXT_TITLE
+PreviewTitle.Font = Enum.Font.GothamBold
+PreviewTitle.TextSize = 20
+PreviewTitle.TextXAlignment = Enum.TextXAlignment.Left
+PreviewTitle.Parent = PreviewDeck
+
+-- Meta Indicators Grid
+local MetadataGroup = Instance.new("Frame")
+MetadataGroup.Size = UDim2.new(1, -40, 0, 24)
+MetadataGroup.Position = UDim2.new(0, 20, 0, 70)
+MetadataGroup.BackgroundTransparency = 1
+MetadataGroup.Visible = false
+MetadataGroup.Parent = PreviewDeck
+
+local MetaDev = Instance.new("TextLabel")
+MetaDev.Size = UDim2.new(0.4, 0, 1, 0)
+MetaDev.BackgroundTransparency = 1
+MetaDev.Text = "AUTHOR: Unknown"
+MetaDev.TextColor3 = TEXT_DESC
+MetaDev.Font = Enum.Font.Code
+MetaDev.TextSize = 10
+MetaDev.TextXAlignment = Enum.TextXAlignment.Left
+MetaDev.Parent = MetadataGroup
+
+local MetaVer = Instance.new("TextLabel")
+MetaVer.Size = UDim2.new(0.3, 0, 1, 0)
+MetaVer.Position = UDim2.new(0.4, 0, 0, 0)
+MetaVer.BackgroundTransparency = 1
+MetaVer.Text = "BUILD: v0.0.0"
+MetaVer.TextColor3 = TEXT_DESC
+MetaVer.Font = Enum.Font.Code
+MetaVer.TextSize = 10
+MetaVer.TextXAlignment = Enum.TextXAlignment.Left
+MetaVer.Parent = MetadataGroup
+
+local StatusBadge = Instance.new("TextLabel")
+StatusBadge.Size = UDim2.new(0, 85, 1, 0)
+StatusBadge.Position = UDim2.new(1, -85, 0, 0)
+StatusBadge.BackgroundColor3 = PANEL_CARD
+StatusBadge.Text = "ONLINE"
+StatusBadge.TextColor3 = ACCENT_MINT
+StatusBadge.Font = Enum.Font.GothamBold
+StatusBadge.TextSize = 9
+StatusBadge.Parent = MetadataGroup
+roundElement(StatusBadge, 4)
+outlineElement(StatusBadge, BORDER_COLOR, 1)
+
+local DescriptionBox = Instance.new("TextLabel")
+DescriptionBox.Size = UDim2.new(1, -40, 0, 140)
+DescriptionBox.Position = UDim2.new(0, 20, 0, 115)
+DescriptionBox.BackgroundTransparency = 1
+DescriptionBox.Text = "Select a simulation module from the left matrix panel to preview its operational payload options and diagnostic status details."
+DescriptionBox.TextColor3 = TEXT_DESC
+DescriptionBox.Font = Enum.Font.GothamMedium
+DescriptionBox.TextSize = 13
+DescriptionBox.TextWrapped = true
+DescriptionBox.TextXAlignment = Enum.TextXAlignment.Left
+DescriptionBox.TextYAlignment = Enum.TextYAlignment.Top
+DescriptionBox.Parent = PreviewDeck
+
 ----------------------------------------------------------------
--- CARD CREATION ENGINE
+-- RUNTIME CONTROLLER AND PARSING LOGIC
 ----------------------------------------------------------------
 
-for _, moduleData in ipairs(ScriptRegistry) do
-	local Card = Instance.new("Frame")
-	Card.Size = UDim2.new(1, -6, 0, 64)
-	Card.BackgroundColor3 = PANEL_BODY
-	Card.Parent = CardsContainer
-	addCorner(Card, 6)
-	local cardStroke = addStroke(Card, SEPARATOR_LINE, 1)
+local ActiveSelectedScript = nil
+local ActiveListButtons = {}
 
-	local Title = Instance.new("TextLabel")
-	Title.Size = UDim2.new(0.65, 0, 0, 24)
-	Title.Position = UDim2.new(0, 12, 0, 8)
-	Title.BackgroundTransparency = 1
-	Title.Text = moduleData.Name
-	Title.TextColor3 = TEXT_MAIN
-	Title.Font = Enum.Font.GothamBold
-	Title.TextSize = 13
-	Title.TextXAlignment = Enum.TextXAlignment.Left
-	Title.Parent = Card
+local function RenderConsoleUI(selectedData, associatedButton)
+	ActiveSelectedScript = selectedData
+	
+	-- Update Selection Visual States
+	for _, btn in ipairs(ActiveListButtons) do
+		TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 27, 34)}):Play()
+		btn:FindFirstChildOfClass("UIStroke").Color = BORDER_COLOR
+	end
+	TweenService:Create(associatedButton, TweenInfo.new(0.2), {BackgroundColor3 = PANEL_CARD}):Play()
+	associatedButton:FindFirstChildOfClass("UIStroke").Color = ACCENT_MINT
 
-	local Desc = Instance.new("TextLabel")
-	Desc.Size = UDim2.new(0.65, 0, 0, 24)
-	Desc.Position = UDim2.new(0, 12, 0, 28)
-	Desc.BackgroundTransparency = 1
-	Desc.Text = moduleData.Description
-	Desc.TextColor3 = TEXT_MUTED
-	Desc.Font = Enum.Font.GothamMedium
-	Desc.TextSize = 11
-	Desc.TextWrap = true
-	Desc.TextXAlignment = Enum.TextXAlignment.Left
-	Desc.Parent = Card
+	-- Populating Data Metrics
+	PreviewTitle.Text = selectedData.Name
+	DescriptionBox.Text = selectedData.Description
+	MetaDev.Text = "AUTHOR: " .. string.upper(selectedData.Developer)
+	MetaVer.Text = "CORE: " .. string.upper(selectedData.Version)
+	StatusBadge.Text = string.upper(selectedData.Status)
+	
+	if selectedData.Status == "Operational" then
+		StatusBadge.TextColor3 = ACCENT_MINT
+		LaunchModuleBtn.BackgroundColor3 = ACCENT_MINT
+		LaunchModuleBtn.Text = "RUN ENGINE SCRIPT"
+	else
+		StatusBadge.TextColor3 = ERRORED_RED
+		LaunchModuleBtn.BackgroundColor3 = PANEL_CARD
+		LaunchModuleBtn.Text = "MODULE SYSTEM LOCKED"
+	end
+	
+	MetadataGroup.Visible = true
+	LaunchModuleBtn.Visible = true
+end
 
-	local LaunchButton = Instance.new("TextButton")
-	LaunchButton.Size = UDim2.new(0, 90, 0, 28)
-	LaunchButton.Position = UDim2.new(1, -102, 0.5, -14)
-	LaunchButton.BackgroundColor3 = TOGGLE_DARK
-	LaunchButton.Text = "EXECUTE"
-	LaunchButton.Font = Enum.Font.GothamBold
-	LaunchButton.TextSize = 10
-	LaunchButton.TextColor3 = ACCENT_MINT
-	LaunchButton.ClipsDescendants = true
-	LaunchButton.Parent = Card
-	addCorner(LaunchButton, 4)
-	addStroke(LaunchButton, SEPARATOR_LINE, 1)
+-- Generate Selection Navigation
+for _, item in ipairs(ScriptRegistry) do
+	local SelectionButton = Instance.new("TextButton")
+	SelectionButton.Size = UDim2.new(1, 0, 0, 44)
+	SelectionButton.BackgroundColor3 = Color3.fromRGB(25, 27, 34)
+	SelectionButton.Text = ""
+	SelectionButton.AutoButtonColor = false
+	SelectionButton.Parent = NavScroller
+	roundElement(SelectionButton, 6)
+	outlineElement(SelectionButton, BORDER_COLOR, 1)
 
-	Card.MouseEnter:Connect(function()
-		TweenService:Create(cardStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(40, 40, 48)}):Play()
-	end)
-	Card.MouseLeave:Connect(function()
-		TweenService:Create(cardStroke, TweenInfo.new(0.2), {Color = SEPARATOR_LINE}):Play()
-	end)
+	local ButtonTitle = Instance.new("TextLabel")
+	ButtonTitle.Size = UDim2.new(1, -24, 1, 0)
+	ButtonTitle.Position = UDim2.new(0, 12, 0, 0)
+	ButtonTitle.BackgroundTransparency = 1
+	ButtonTitle.Text = item.Name
+	ButtonTitle.TextColor3 = TEXT_TITLE
+	ButtonTitle.Font = Enum.Font.GothamBold
+	ButtonTitle.TextSize = 11
+	ButtonTitle.TextXAlignment = Enum.TextXAlignment.Left
+	ButtonTitle.Parent = SelectionButton
 
-	LaunchButton.MouseButton1Click:Connect(function()
-		createRipple(LaunchButton, Mouse.X, Mouse.Y)
-		
-		LaunchButton.Text = "LOADING..."
-		LaunchButton.TextColor3 = TEXT_MUTED
-		
-		task.spawn(function()
-			local success, response = pcall(function()
-				return game:HttpGet(moduleData.Url)
-			end)
-			
-			if success and response then
-				LaunchButton.Text = "RUNNING"
-				LaunchButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-				LaunchButton.BackgroundColor3 = ACCENT_MINT
-				
-				local func, err = loadstring(response)
-				if func then
-					task.spawn(func)
-				else
-					warn("Error compiling script code: " .. tostring(err))
-					LaunchButton.Text = "STR_ERR"
-					LaunchButton.TextColor3 = Color3.fromRGB(255, 50, 50)
-				end
-			else
-				warn("Failed to reach GitHub link.")
-				LaunchButton.Text = "HTTP_ERR"
-				LaunchButton.TextColor3 = Color3.fromRGB(255, 50, 50)
-			end
-		end)
+	table.insert(ActiveListButtons, SelectionButton)
+
+	SelectionButton.MouseButton1Click:Connect(function()
+		triggerRippleEffect(SelectionButton, Mouse.X, Mouse.Y)
+		RenderConsoleUI(item, SelectionButton)
 	end)
 end
 
+-- Adjust Scrollable Bounds dynamically
+NavigationLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	NavScroller.CanvasSize = UDim2.new(0, 0, 0, NavigationLayout.AbsoluteContentSize.Y + 10)
+end)
+
 ----------------------------------------------------------------
--- SHOW / HIDE CONTROLLER
+-- CINEMATIC TERMINATION LOGIC (RUN & DESTROY)
 ----------------------------------------------------------------
 
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed or UserInputService:GetFocusedTextBox() ~= nil then return end
+LaunchModuleBtn.MouseButton1Click:Connect(function()
+	if not ActiveSelectedScript or ActiveSelectedScript.Status ~= "Operational" then return end
 	
-	if input.KeyCode == Enum.KeyCode.RightShift then
-		hubVisible = not hubVisible
-		if hubVisible then
-			MainPanel.Visible = true
-			TweenService:Create(MainPanel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 500, 0, 340), BackgroundTransparency = 0}):Play()
+	triggerRippleEffect(LaunchModuleBtn, Mouse.X, Mouse.Y)
+	LaunchModuleBtn.Text = "COMPILING RUNTIME CORE..."
+	LaunchModuleBtn.TextColor3 = TEXT_DESC
+	
+	task.spawn(function()
+		local networkSuccess, rawPayload = pcall(function()
+			return game:HttpGet(ActiveSelectedScript.Url)
+		end)
+		
+		if networkSuccess and rawPayload then
+			local compiledFunction, syntaxError = loadstring(rawPayload)
+			if compiledFunction then
+				-- Play cinematic fade-out animation
+				local closingTween = TweenService:Create(CanvasGroup, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					Size = UDim2.new(0, 640, 0, 380),
+					GroupTransparency = 1
+				})
+				closingTween:Play()
+				closingTween.Completed:Wait()
+				
+				-- Destroy UI object completely from game memory
+				PremiumHubGui:Destroy()
+				
+				-- Execute the freshly pulled clean codebase in its isolated container
+				task.spawn(compiledFunction)
+			else
+				warn("[WeProvide Compiler Error]: " .. tostring(syntaxError))
+				LaunchModuleBtn.Text = "COMPILATION FAILED"
+				LaunchModuleBtn.TextColor3 = ERRORED_RED
+			end
 		else
-			TweenService:Create(MainPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 500, 0, 0), BackgroundTransparency = 1}):Play()
-			task.delay(0.2, function() if not hubVisible then MainPanel.Visible = false end end)
+			warn("[WeProvide Handshake Error]: Failed to reach source distribution cluster.")
+			LaunchModuleBtn.Text = "NETWORK HANDSHAKE TIMEOUT"
+			LaunchModuleBtn.TextColor3 = ERRORED_RED
 		end
-	end
+	end)
 end)
+
+-- Hub Entry Animation Effect
+roundElement(CanvasGroup, 12)
+outlineElement(CanvasGroup, BORDER_COLOR, 1.5)
+CanvasGroup.Size = UDim2.new(0, 650, 0, 390)
+TweenService:Create(CanvasGroup, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	Size = UDim2.new(0, 680, 0, 420),
+	GroupTransparency = 0
+}):Play()
